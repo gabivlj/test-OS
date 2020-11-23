@@ -2,12 +2,12 @@
 
 This is a OS made in Rust following tutorials from the internet like phil-opp
 
-Currently I struggled so much with compiling this on MacOS, because nightly sometimes
+First off, I struggled so much with compiling this on MacOS, because nightly sometimes
 does weird stuff on new versions in OSs that are not Linux.
 
 ## Instructions Install [MacOS]
 
-1. First you have to install nightly that works well when installing LLVM tools. This is the version that I found working well and compatible with the requirements of this project
+1. First you have to install a nightly version that works well when using LLVM tools. This is the version that I found working well and compatible with the requirements of this project
 
 - `rustup toolchain install nightly-2020-10-05 && rustup default nightly-2020-10-05`
 
