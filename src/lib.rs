@@ -8,6 +8,7 @@
 // All of the components of the so
 pub mod gdt;
 mod interrupts;
+pub mod key;
 pub mod qemu;
 pub mod serial;
 pub mod vga_buffer;
@@ -17,6 +18,18 @@ use core::panic::PanicInfo;
 pub fn init() {
     gdt::init();
     interrupts::init_dt();
+    // Initialize PICS so we know where the external interrupts are going
+    unsafe { interrupts::PICS.lock().initialize() };
+    x86_64::instructions::interrupts::enable();
+}
+
+///
+/// Sleeps CPU until the next interruption comes
+///
+pub fn hlt_loop() -> ! {
+    loop {
+        x86_64::instructions::hlt();
+    }
 }
 
 ///
@@ -49,7 +62,7 @@ pub fn test_panic_handler(info: &PanicInfo) -> ! {
     serial_println!("[failed]\n");
     serial_println!("Error: {}\n", info);
     qemu::exit_qemu(qemu::QemuExitCode::Failed);
-    loop {}
+    hlt_loop();
 }
 
 /// Entry point for `cargo test`
@@ -58,7 +71,7 @@ pub fn test_panic_handler(info: &PanicInfo) -> ! {
 pub extern "C" fn _start() -> ! {
     init();
     test_main();
-    loop {}
+    hlt_loop();
 }
 
 #[cfg(test)]
