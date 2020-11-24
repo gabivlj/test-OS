@@ -1,24 +1,42 @@
-// src/main.rs
-
-#![no_std] // don't link the Rust standard library
-#![no_main] // disable all Rust-level entry points
+#![no_std]
+#![no_main]
+#![feature(custom_test_frameworks)]
+#![test_runner(rust_os::test_runner)]
+#![reexport_test_harness_main = "test_main"]
 
 use core::panic::PanicInfo;
-
-mod vga_buffer;
-
-use vga_buffer::print_something;
-
-/// This function is called on panic.
-#[panic_handler]
-fn panic(_info: &PanicInfo) -> ! {
-    loop {}
-}
-
-static HELLO: &[u8] = b"Hello World!";
+use rust_os::println;
+use rust_os::test_panic_handler;
 
 #[no_mangle]
 pub extern "C" fn _start() -> ! {
-    print_something();
+    println!("Welcome to this OS{}", "!");
+    #[cfg(test)]
+    test_main();
+
+    rust_os::init();
+
+    // unsafe {
+    //     *(0xdeadbeef as *mut u64) = 42;
+    // };
+
+    x86_64::instructions::interrupts::int3();
+
+    println!("NOT crashed!");
+
     loop {}
+}
+
+/// This function is called on panic.
+#[cfg(not(test))]
+#[panic_handler]
+fn panic(info: &PanicInfo) -> ! {
+    println!("{}", info);
+    loop {}
+}
+
+#[cfg(test)]
+#[panic_handler]
+fn panic(info: &PanicInfo) -> ! {
+    test_panic_handler(info);
 }
