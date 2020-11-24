@@ -45,6 +45,10 @@ lazy_static! {
     };
 }
 
+///
+/// Loads the DT, loading all the callbacks addresses to the IDT,
+/// from the interrupts of the CPU to the external ones
+///
 pub fn init_dt() {
     IDT.load();
 }
@@ -70,9 +74,18 @@ use pic8259_simple::ChainedPics;
 use spin;
 
 /// Where we wanna store external interrupts
+///
+/// `32` is where the exception interrupts finish, 47 because there is 15 more
+///
 pub const PIC_1_OFFSET: u8 = 32;
 pub const PIC_2_OFFSET: u8 = 47;
 
+///
+/// PICS send us external interruptions
+///
+/// With the offsets we handle that the PICS send the interruptions
+/// to the good place instead of the bad place :)
+///
 pub static PICS: spin::Mutex<ChainedPics> =
     spin::Mutex::new(unsafe { ChainedPics::new(PIC_1_OFFSET, PIC_2_OFFSET) });
 
