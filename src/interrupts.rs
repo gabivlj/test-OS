@@ -1,3 +1,4 @@
+use crate::gdt;
 use crate::println;
 use lazy_static::lazy_static;
 ///
