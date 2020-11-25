@@ -1,6 +1,8 @@
 use crate::gdt;
+use crate::hlt_loop;
 use crate::{print, println};
 use lazy_static::lazy_static;
+
 ///
 ///  We will use for the IDT the already made struct in the
 /// x86_64 crate that looks like this
@@ -33,6 +35,7 @@ lazy_static! {
     static ref IDT: InterruptDescriptorTable = {
         let mut idt = InterruptDescriptorTable::new();
         idt.breakpoint.set_handler_fn(breakpoint_handler);
+        idt.page_fault.set_handler_fn(page_fault_handler);
         unsafe {
             idt.double_fault
                 .set_handler_fn(double_fault_handler)
@@ -51,6 +54,20 @@ lazy_static! {
 ///
 pub fn init_dt() {
     IDT.load();
+}
+
+use x86_64::structures::idt::PageFaultErrorCode;
+
+extern "x86-interrupt" fn page_fault_handler(
+    stack_frame: &mut InterruptStackFrame,
+    error_code: PageFaultErrorCode,
+) {
+    use x86_64::registers::control::Cr2;
+    println!("EXCEPTION: PAGE ACCESS FAULT");
+    println!("Accessed address: {:?}", Cr2::read());
+    println!("Error Code: {:?}", error_code);
+    println!("{:#?}", stack_frame);
+    hlt_loop();
 }
 
 extern "x86-interrupt" fn breakpoint_handler(stack_frame: &mut InterruptStackFrame) {
