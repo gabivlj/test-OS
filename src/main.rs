@@ -29,19 +29,6 @@ fn recursive_virt_addr() {
     let level_1_table_addr = sign | (r << 39) | (l4_idx << 30) | (l3_idx << 21) | (l2_idx << 12);
 }
 
-fn heap_allocations() {
-    let heap_val = Box::new(51);
-    println!("heap_val at {:p} and value {}", heap_val, *heap_val);
-    let mut vector = Vec::new();
-    vector.push(1);
-    vector.push(2);
-    vector.push(3);
-    println!(
-        "Vector allocated of: {:?} with address: {:p}",
-        vector, &vector
-    );
-}
-
 use bootloader::{entry_point, BootInfo};
 
 entry_point!(kernel_main);
@@ -51,59 +38,40 @@ pub fn kernel_main(boot_info: &'static BootInfo) -> ! {
         VirtAddr,
     };
     println!("Welcome to this OS{} Initializing some stuff. . .", "!");
-    println!("\n\n[DEBUG]");
-    println!("------------------------------");
+
     #[cfg(test)]
     test_main();
-    rust_os::init();
+    rust_os::init_os();
     // Physical Offset (Where the tables are places)
     // from the bootloader, tell the mapper to initialize working with that
+    // let (mut mapper, mut frame_allocator) = rust_os::init_with_frame_alloc(boot_info);
     let phys_memory_offset = VirtAddr::new(boot_info.physical_memory_offset);
-    // Initialize the mapper
+    // Initialize table struct
     let mut mapper = unsafe { memory::init(phys_memory_offset) };
-    // Showing that the pages from the bootloader work
-    println!(
-        "0xb8000 -> {:?}",
-        mapper.translate_addr(VirtAddr::new(0xb8000))
-    );
-    // Get the virtual page that contains this virtual addr (Basically get the frame to map)
-    let page = Page::containing_address(VirtAddr::new(0xdeadbeef));
-    // Initialize frame allocator to map physical frames to virtual ones
     let mut frame_allocator =
         unsafe { memory::BootInfoFrameAllocator::init(&boot_info.memory_map) };
-    // Initialize the heap with our virtual tables and frame allocator
-    allocator::init_heap(&mut mapper, &mut frame_allocator)
-        .expect("[CRASH] HEAP INITIALIZATION FAILED");
-    heap_allocations();
+    allocator::init_heap(&mut mapper, &mut frame_allocator).expect("[CRASH] Heap allocator failed");
+    // Showing that the pages from the bootloader work
+    // println!(
+    //     "0xb8000 -> {:?}",
+    //     mapper.translate_addr(VirtAddr::new(0xb8000))
+    // );
+    // Get the virtual page that contains this virtual addr (Basically get the frame to map)
+    // let page = Page::containing_address(VirtAddr::new(0xdeadbeef));
     // map VGA 0xb8000 to the page where 0xdeadbeef
-    memory::create_example_mapping(page, &mut mapper, &mut frame_allocator);
-    // access that virtual address and write to it
-    let page_ptr: *mut u64 = page.start_address().as_mut_ptr();
-    unsafe {
-        page_ptr.offset(400).write_volatile(0x_f021_f077_f065_f04e);
-    };
-    // Show that translation works as expected
-    println!(
-        "{:?} -> {:?}",
-        VirtAddr::new(page.start_address().as_u64()),
-        unsafe { mapper.translate_addr(VirtAddr::new(page.start_address().as_u64())) }
-    );
-    use x86_64::registers::control::Cr3;
-    // Show how we get the level 4 page table
-    let (level_4_page_table, _) = Cr3::read();
-    println!(
-        "Level 4 page table at: {:?}",
-        level_4_page_table.start_address()
-    );
-
+    // memory::create_example_mapping(page, &mut mapper, &mut frame_allocator);
+    // // access that virtual address and write to it
+    // let page_ptr: *mut u64 = page.start_address().as_mut_ptr();
     // unsafe {
-    //     *(0xdeadbeef as *mut u64) = 42;
+    //     page_ptr.offset(400).write_volatile(0x_f021_f077_f065_f04e);
     // };
-
-    // x86_64::instructions::interrupts::int3();
-    println!("------------------------------");
+    // Show that translation works as expected
+    // println!(
+    //     "{:?} -> {:?}",
+    //     VirtAddr::new(page.start_address().as_u64()),
+    //     unsafe { mapper.translate_addr(VirtAddr::new(page.start_address().as_u64())) }
+    // );
     println!("Welcome :) Everything is fine");
-
     rust_os::hlt_loop();
 }
 

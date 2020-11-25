@@ -5,6 +5,12 @@
 #![feature(custom_test_frameworks)]
 #![test_runner(crate::test_runner)]
 #![reexport_test_harness_main = "test_main"]
+#[cfg(not(test))]
+use bootloader::BootInfo;
+use x86_64::{
+    structures::paging::{FrameAllocator, MapperAllSizes, OffsetPageTable, Page, Size4KiB},
+    VirtAddr,
+};
 
 // All of the components of the so
 pub mod allocator;
@@ -20,12 +26,34 @@ use core::panic::PanicInfo;
 
 extern crate alloc;
 
-pub fn init() {
+pub fn init_os() {
     gdt::init();
     interrupts::init_dt();
     // Initialize PICS so we know where the external interrupts are going
     unsafe { interrupts::PICS.lock().initialize() };
     x86_64::instructions::interrupts::enable();
+}
+
+///
+/// Initializes the core of the OS plus
+/// the frame allocator, the page tables and heap allocator
+/// using the physical address offset and the memory_map (available physical addresses)
+/// of the OS
+///
+/// ! This crashes... and I dont know why!
+///
+#[inline]
+pub fn init_with_frame_alloc(
+    boot_info: &'static BootInfo,
+) -> (OffsetPageTable<'static>, impl FrameAllocator<Size4KiB>) {
+    init_os();
+    let phys = VirtAddr::new(boot_info.physical_memory_offset);
+    // Initialize table struct
+    let mut map = unsafe { memory::init(phys) };
+    let mut frame_allocator =
+        unsafe { memory::BootInfoFrameAllocator::init(&boot_info.memory_map) };
+    allocator::init_heap(&mut map, &mut frame_allocator).expect("[CRASH] Heap allocator failed");
+    (map, frame_allocator)
 }
 
 ///
