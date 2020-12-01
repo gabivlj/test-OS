@@ -3,7 +3,8 @@ use x86_64::structures::paging::OffsetPageTable;
 use x86_64::PhysAddr;
 use x86_64::{structures::paging::PageTable, VirtAddr};
 
-/// Initialize a new offset pages table so we can translate VirtAddr
+/// Initialize a new offset pages table so we can fill it later
+/// with map
 pub unsafe fn init(physical_memory_offset: VirtAddr) -> OffsetPageTable<'static> {
     let level_4_table = active_level_4_table(physical_memory_offset);
     OffsetPageTable::new(level_4_table, physical_memory_offset)

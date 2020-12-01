@@ -10,6 +10,8 @@ use core::panic::PanicInfo;
 use rust_os::allocator;
 use rust_os::memory;
 use rust_os::println;
+use rust_os::task::keyboard;
+use rust_os::task::{executor::Executor, Task};
 use rust_os::test_panic_handler;
 
 fn recursive_virt_addr() {
@@ -34,6 +36,7 @@ use bootloader::{entry_point, BootInfo};
 entry_point!(kernel_main);
 pub fn kernel_main(boot_info: &'static BootInfo) -> ! {
     use x86_64::{
+        instructions::interrupts,
         structures::paging::{MapperAllSizes, Page},
         VirtAddr,
     };
@@ -51,6 +54,20 @@ pub fn kernel_main(boot_info: &'static BootInfo) -> ! {
     let mut frame_allocator =
         unsafe { memory::BootInfoFrameAllocator::init(&boot_info.memory_map) };
     allocator::init_heap(&mut mapper, &mut frame_allocator).expect("[CRASH] Heap allocator failed");
+
+    struct C {
+        c: u16,
+        z: u16,
+        // a: char,
+        // a2: char,
+    }
+    let mut v = Vec::with_capacity(3);
+    v.push(C {
+        c: 0,
+        z: 0,
+        // a: 'a',
+        // a2: 'b',
+    });
     // Showing that the pages from the bootloader work
     // println!(
     //     "0xb8000 -> {:?}",
@@ -72,7 +89,24 @@ pub fn kernel_main(boot_info: &'static BootInfo) -> ! {
     //     unsafe { mapper.translate_addr(VirtAddr::new(page.start_address().as_u64())) }
     // );
     println!("Welcome :) Everything is fine");
+
+    let mut executor = Executor::new();
+    executor.spawn(Task::new(example_task()));
+    executor.spawn(Task::new(keyboard::print_keypresses()));
+    executor.run();
+
     rust_os::hlt_loop();
+}
+
+async fn async_number() -> u32 {
+    42
+}
+
+async fn example_task() {
+    for i in 0..10 {
+        let number = async_number().await;
+        println!("async number: {}", number);
+    }
 }
 
 /// This function is called on panic.

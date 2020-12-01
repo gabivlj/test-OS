@@ -136,45 +136,37 @@ impl InterruptIndex {
 ///
 extern "x86-interrupt" fn timer_interrupt_handler(_stack_frame: &mut InterruptStackFrame) {
     // print!(".");
+    use crate::task::executor::Executor;
+    use crate::task::Task;
+    use x86_64::instructions::interrupts;
     // Tell the PIC to notify that we handled the interrupt
+
     unsafe {
         PICS.lock()
             .notify_end_of_interrupt(InterruptIndex::Timer.as_u8());
     }
 }
+async fn test2() -> u64 {
+    3
+}
 
+async fn test(scancode: u8) {
+    let i = test2().await;
+    println!("e {}", scancode);
+}
 extern "x86-interrupt" fn keyboard_interrupt_handler(_stack_frame: &mut InterruptStackFrame) {
     // use crate::key::{Key, XT};
     // use core::convert::TryFrom;
-    use pc_keyboard::{layouts, DecodedKey, HandleControl, Keyboard, ScancodeSet1};
-    use spin::Mutex;
     use x86_64::instructions::port::Port;
-
     let mut port = Port::new(0x60);
 
-    // let xt_key = XT(unsafe { port.read() });
-    // let scancode: Result<Key, _> = Key::try_from(xt_key);
-    // if let Ok(key) = scancode {
-    //     print!("{}", key as u8 as char);
-    // }
-
-    lazy_static! {
-        static ref KEYBOARD: Mutex<Keyboard<layouts::Us104Key, ScancodeSet1>> = Mutex::new(
-            Keyboard::new(layouts::Us104Key, ScancodeSet1, HandleControl::Ignore)
-        );
-    }
-
     let scancode: u8 = unsafe { port.read() };
-    let mut keyboard = KEYBOARD.lock();
-    if let Ok(Some(key_event)) = keyboard.add_byte(scancode) {
-        if let Some(key) = keyboard.process_keyevent(key_event) {
-            match key {
-                DecodedKey::Unicode(character) => print!("{}", character),
-                DecodedKey::RawKey(key) => print!("{:?}", key),
-            }
-        }
-    }
 
+    crate::task::keyboard::add_scancode(scancode);
+
+    // for i in 0..100 {
+    // Spawner::send_task(test());
+    // }
     unsafe {
         PICS.lock()
             .notify_end_of_interrupt(InterruptIndex::Keyboard.as_u8());

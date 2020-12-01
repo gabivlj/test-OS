@@ -77,6 +77,7 @@ pub struct Writer {
 
 impl Writer {
     pub fn write_byte(&mut self, byte: u8) {
+        // self.new_line();
         match byte {
             b'\n' => self.new_line(),
             byte => {

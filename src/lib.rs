@@ -1,3 +1,8 @@
+#![feature(wake_trait)]
+#![feature(box_into_pin)]
+#![feature(raw)]
+#![feature(const_in_array_repeat_expressions)]
+#![feature(const_mut_refs)]
 #![feature(alloc_error_handler)]
 #![no_std]
 #![feature(abi_x86_interrupt)]
@@ -20,6 +25,7 @@ pub mod key;
 pub mod memory;
 pub mod qemu;
 pub mod serial;
+pub mod task;
 pub mod vga_buffer;
 
 use core::panic::PanicInfo;
@@ -107,7 +113,7 @@ entry_point!(test_kernel_main);
 /// Entry point for `cargo test`
 #[cfg(test)]
 pub fn test_kernel_main(_boot_info: &'static BootInfo) -> ! {
-    init();
+    init_os();
     test_main();
     hlt_loop();
 }

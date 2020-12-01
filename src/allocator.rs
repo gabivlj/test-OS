@@ -1,9 +1,16 @@
 #![feature(alloc_error_handler)]
 #[global_allocator]
-static ALLOCATOR: LockedHeap = LockedHeap::empty();
+static ALLOCATOR: Locked<FixedBlockAllocator> = Locked::new(FixedBlockAllocator::new());
+pub mod bump;
+pub mod fixed_block;
+pub mod linked_list;
 
+use crate::println;
 use alloc::alloc::{GlobalAlloc, Layout};
+use bump::BumpAllocator;
 use core::ptr::null_mut;
+use fixed_block::FixedBlockAllocator;
+use linked_list::LinkedListAllocator;
 use linked_list_allocator::LockedHeap;
 
 pub const HEAP_START: usize = 0x_4444_4444_0000;
@@ -60,4 +67,36 @@ unsafe impl GlobalAlloc for DummyAllocator {
 #[alloc_error_handler]
 fn alloc_error_handler(layout: alloc::alloc::Layout) -> ! {
     panic!("allocation error: {:?}", layout)
+}
+
+use spin;
+
+/// Safe abstraction for mutexes and allows impl traits
+pub struct Locked<A> {
+    inner: spin::Mutex<A>,
+}
+
+impl<A> Locked<A> {
+    pub const fn new(inner: A) -> Self {
+        Locked {
+            inner: spin::Mutex::new(inner),
+        }
+    }
+
+    pub fn lock(&self) -> spin::MutexGuard<A> {
+        self.inner.lock()
+    }
+}
+
+///
+/// Aligns address with the desired alignment (rounds up)
+///
+pub fn align_up(addr: usize, align: usize) -> usize {
+    // println!("{} aligned", align);
+    let remainder = addr % align;
+    if remainder == 0 {
+        addr
+    } else {
+        addr - remainder + align
+    }
 }
